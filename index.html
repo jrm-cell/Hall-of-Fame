@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mes Victoires Pokémon Showdown</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="particles" id="particles"></div>
+    
+    <!-- Écran de connexion admin (caché par défaut) -->
+    <div class="login-overlay" id="loginOverlay" style="display: none;">
+        <div class="login-box">
+            <div class="lock-icon">🔒</div>
+            <h2>Accès Administrateur</h2>
+            <p>Connexion requise pour ajouter des victoires</p>
+            <form id="loginForm">
+                <input type="password" id="adminPassword" placeholder="Mot de passe admin" required>
+                <button type="submit">Se connecter</button>
+                <p class="error-message" id="errorMessage"></p>
+            </form>
+            <button type="button" class="cancel-btn" id="cancelLogin">Annuler</button>
+            <p class="hint">💡 Des idées ? Contacter Jrm </p>
+        </div>
+    </div>
+
+    <div class="container">
+        <header class="animate-fade-in">
+            <div class="logo-container">
+                <div class="pokeball-icon">
+                    <div class="pokeball-top"></div>
+                    <div class="pokeball-middle"></div>
+                    <div class="pokeball-bottom"></div>
+                </div>
+            </div>
+            <h1 class="glitch" data-text="MES VICTOIRES">Hall of Fame Fc Chomage</h1>
+            <p class="subtitle">Pokémon Showdown - Hall of Fame</p>
+            <div class="stats-bar">
+                <div class="stat-item">
+                    <span class="stat-number" id="totalVictories">0</span>
+                    <span class="stat-label">Victoires</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-number" id="winStreak">0</span>
+                    <span class="stat-label">Série actuelle</span>
+                </div>
+            </div>
+            
+            <!-- Bouton admin -->
+            <div class="admin-panel">
+                <button class="admin-btn" id="adminToggle">
+                    <span id="adminStatus">👤 Visiteur</span>
+                </button>
+                <button class="logout-btn" id="logoutBtn" style="display: none;">
+                    🚪 Déconnexion
+                </button>
+            </div>
+        </header>
+
+        <button class="add-btn floating" id="openModal" style="display: none;">
+            <span class="plus-icon">+</span>
+            <span class="btn-text">Nouvelle Victoire</span>
+        </button>
+
+        <div class="filter-section">
+            <input type="text" id="searchInput" placeholder="🔍 Rechercher un adversaire..." class="search-bar">
+            <select id="sortSelect" class="sort-select">
+                <option value="recent">Plus récent</option>
+                <option value="oldest">Plus ancien</option>
+                <option value="name">Par nom (A-Z)</option>
+            </select>
+        </div>
+
+        <div class="victories-grid" id="victoriesGrid">
+            <div class="no-victories">
+                <div class="empty-state">
+                    <div class="empty-icon">🏆</div>
+                    <h3>Aucune victoire enregistrée</h3>
+                    <p>L'admin peut ajouter des exploits !</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="modal">
+        <div class="modal-content">
+            <button class="close-modal" id="closeModal">&times;</button>
+            <h2>🎮 Nouvelle Victoire</h2>
+            <form id="victoryForm">
+                <div class="form-group">
+                    <label>Adversaire 1</label>
+                    <input type="text" id="opponent1Name" placeholder="Nom du premier dresseur" required>
+                </div>
+                <div class="form-group">
+                    <label>Équipe adverse 1</label>
+                    <input type="text" id="opponent1Team" placeholder="Dracaufeu, Pikachu, Mewtwo..." required>
+                </div>
+                <div class="form-group">
+                    <label>Adversaire 2</label>
+                    <input type="text" id="opponent2Name" placeholder="Nom du second dresseur" required>
+                </div>
+                <div class="form-group">
+                    <label>Équipe adverse 2</label>
+                    <input type="text" id="opponent2Team" placeholder="Léviator, Ronflex, Ectoplasma..." required>
+                </div>
+                <div class="form-group">
+                    <label>Date de la bataille</label>
+                    <input type="date" id="battleDate" required>
+                </div>
+                <div class="form-group">
+                    <label>Lien du replay</label>
+                    <input type="url" id="replayLink" placeholder="https://replay.pokemonshowdown.com/..." required>
+                </div>
+                <div class="form-group">
+                    <label>Lien Smogon (optionnel)</label>
+                    <input type="url" id="smogonLink" placeholder="https://www.smogon.com/...">
+                </div>
+                <div class="form-group">
+                    <label>Vainqueur</label>
+                    <select id="winner" required>
+                        <option value="">-- Sélectionner le vainqueur --</option>
+                        <option value="opponent1">Adversaire 1</option>
+                        <option value="opponent2">Adversaire 2</option>
+                    </select>
+                </div>
+                <button type="submit" class="submit-btn">
+                    <span>✨ Enregistrer la victoire</span>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // 🔐 CONFIGURATION ADMIN - CHANGE TON MOT DE PASSE ICI !
+        const ADMIN_PASSWORD = "pokemon123"; // ⚠️ CHANGE CE MOT DE PASSE !
+        
+        let isAdmin = false;
+        let victories = [];
+        let winStreak = 0;
+
+        // Charger les données sauvegardées
+        function loadData() {
+            const saved = localStorage.getItem('pokemonVictories');
+            const savedStreak = localStorage.getItem('winStreak');
+            if (saved) {
+                victories = JSON.parse(saved);
+            }
+            if (savedStreak) {
+                winStreak = parseInt(savedStreak);
+            }
+        }
+
+        // Sauvegarder les données
+        function saveData() {
+            localStorage.setItem('pokemonVictories', JSON.stringify(victories));
+            localStorage.setItem('winStreak', winStreak.toString());
+        }
+
+        // Vérifier le mot de passe
+        document.getElementById('loginForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const password = document.getElementById('adminPassword').value;
+            
+            if (password === ADMIN_PASSWORD) {
+                isAdmin = true;
+                document.getElementById('loginOverlay').style.display = 'none';
+                document.getElementById('openModal').style.display = 'flex';
+                document.getElementById('adminStatus').innerHTML = '🔓 Admin connecté';
+                document.getElementById('adminStatus').style.color = '#4CAF50';
+                document.getElementById('logoutBtn').style.display = 'block';
+                document.getElementById('adminPassword').value = '';
+                renderVictories(); // Rafraîchir pour afficher les boutons supprimer
+                showSuccessAnimation('Connexion réussie ! 🎉');
+            } else {
+                const errorMsg = document.getElementById('errorMessage');
+                errorMsg.textContent = '❌ Mot de passe incorrect';
+                errorMsg.style.display = 'block';
+                document.getElementById('adminPassword').value = '';
+                setTimeout(() => {
+                    errorMsg.style.display = 'none';
+                }, 3000);
+            }
+        });
+
+        // Annuler la connexion
+        document.getElementById('cancelLogin').addEventListener('click', () => {
+            document.getElementById('loginOverlay').style.display = 'none';
+            document.getElementById('adminPassword').value = '';
+        });
+
+        // Bouton admin toggle
+        document.getElementById('adminToggle').addEventListener('click', () => {
+            if (!isAdmin) {
+                document.getElementById('loginOverlay').style.display = 'flex';
+            }
+        });
+
+        // Déconnexion
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            isAdmin = false;
+            document.getElementById('openModal').style.display = 'none';
+            document.getElementById('adminStatus').innerHTML = '👤 Visiteur';
+            document.getElementById('adminStatus').style.color = '#fff';
+            document.getElementById('logoutBtn').style.display = 'none';
+            renderVictories(); // Rafraîchir pour cacher les boutons supprimer
+            showSuccessAnimation('Déconnexion réussie');
+        });
+
+        // Particules animées
+        function createParticles() {
+            const container = document.getElementById('particles');
+            for(let i = 0; i < 30; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.left = Math.random() * 100 + '%';
+                particle.style.animationDelay = Math.random() * 5 + 's';
+                particle.style.animationDuration = (Math.random() * 10 + 10) + 's';
+                container.appendChild(particle);
+            }
+        }
+
+        // Modal
+        const modal = document.getElementById('modal');
+        const openModal = document.getElementById('openModal');
+        const closeModal = document.getElementById('closeModal');
+
+        openModal.onclick = () => {
+            if (isAdmin) {
+                modal.style.display = 'flex';
+                setTimeout(() => modal.classList.add('show'), 10);
+            } else {
+                showSuccessAnimation('⚠️ Accès refusé - Connexion admin requise');
+            }
+        };
+
+        closeModal.onclick = () => {
+            modal.classList.remove('show');
+            setTimeout(() => modal.style.display = 'none', 300);
+        };
+
+        window.onclick = (e) => {
+            if (e.target === modal) {
+                closeModal.click();
+            }
+        };
+
+        // Ajouter victoire (réservé admin)
+        document.getElementById('victoryForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            if (!isAdmin) {
+                showSuccessAnimation('⚠️ Accès refusé - Admin seulement');
+                return;
+            }
+            
+            const victory = {
+                id: Date.now(),
+                opponent1: document.getElementById('opponent1Name').value,
+                opponent1Team: document.getElementById('opponent1Team').value,
+                opponent2: document.getElementById('opponent2Name').value,
+                opponent2Team: document.getElementById('opponent2Team').value,
+                date: document.getElementById('battleDate').value,
+                replayLink: document.getElementById('replayLink').value,
+                smogonLink: document.getElementById('smogonLink').value,
+                winner: document.getElementById('winner').value
+            };
+            
+            victories.unshift(victory);
+            winStreak++;
+            saveData();
+            updateStats();
+            renderVictories();
+            document.getElementById('victoryForm').reset();
+            closeModal.click();
+            
+            showSuccessAnimation('🎉 Victoire ajoutée !');
+        });
+
+        function showSuccessAnimation(message) {
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.innerHTML = message;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.classList.add('show'), 10);
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        function deleteVictory(id) {
+            if (!isAdmin) {
+                showSuccessAnimation('⚠️ Accès refusé - Admin seulement');
+                return;
+            }
+            
+            if(confirm('Supprimer cette victoire ?')) {
+                victories = victories.filter(v => v.id !== id);
+                saveData();
+                updateStats();
+                renderVictories();
+                showSuccessAnimation('Victoire supprimée');
+            }
+        }
+
+        function updateStats() {
+            document.getElementById('totalVictories').textContent = victories.length;
+            document.getElementById('winStreak').textContent = winStreak;
+        }
+
+        function renderVictories() {
+            const grid = document.getElementById('victoriesGrid');
+            
+            if (victories.length === 0) {
+                grid.innerHTML = `
+                    <div class="no-victories">
+                        <div class="empty-state">
+                            <div class="empty-icon">🏆</div>
+                            <h3>Aucune victoire enregistrée</h3>
+                            <p>L'admin peut ajouter des exploits !</p>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+            
+            grid.innerHTML = victories.map((v, index) => `
+                <div class="victory-card" style="animation-delay: ${index * 0.1}s">
+                    <div class="card-shine"></div>
+                    ${isAdmin ? `
+                        <button class="delete-btn" onclick="deleteVictory(${v.id})">
+                            <span>✕</span>
+                        </button>
+                    ` : ''}
+                    <div class="card-header">
+                        <div class="opponents-container">
+                            <div class="opponent-item ${v.winner === 'opponent1' ? 'winner' : 'loser'}">
+                                <div class="profile-pic-placeholder opponent-1">
+                                    <span>${v.opponent1.charAt(0).toUpperCase()}</span>
+                                    ${v.winner === 'opponent1' ? '<div class="crown">👑</div>' : ''}
+                                </div>
+                                <div class="opponent-details">
+                                    <h3>${v.opponent1} ${v.winner === 'opponent1' ? '🏆' : ''}</h3>
+                                    <p class="opponent-label">${v.winner === 'opponent1' ? 'VAINQUEUR' : 'Adversaire 1'}</p>
+                                </div>
+                            </div>
+                            <div class="vs-small">VS</div>
+                            <div class="opponent-item ${v.winner === 'opponent2' ? 'winner' : 'loser'}">
+                                <div class="profile-pic-placeholder opponent-2">
+                                    <span>${v.opponent2.charAt(0).toUpperCase()}</span>
+                                    ${v.winner === 'opponent2' ? '<div class="crown">👑</div>' : ''}
+                                </div>
+                                <div class="opponent-details">
+                                    <h3>${v.opponent2} ${v.winner === 'opponent2' ? '🏆' : ''}</h3>
+                                    <p class="opponent-label">${v.winner === 'opponent2' ? 'VAINQUEUR' : 'Adversaire 2'}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <p class="date">📅 ${new Date(v.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                    </div>
+                    <div class="card-body">
+                        <div class="team-section enemy">
+                            <div class="team-header">
+                                <span class="team-icon">⚔️</span>
+                                <span class="team-label">Équipe ${v.opponent1}</span>
+                            </div>
+                            <div class="team-value">${v.opponent1Team}</div>
+                        </div>
+                        <div class="team-section enemy">
+                            <div class="team-header">
+                                <span class="team-icon">⚔️</span>
+                                <span class="team-label">Équipe ${v.opponent2}</span>
+                            </div>
+                            <div class="team-value">${v.opponent2Team}</div>
+                        </div>
+                        ${v.replayLink ? `
+                            <div class="replay-section">
+                                <a href="${v.replayLink}" target="_blank" class="replay-btn">
+                                    <span>🎬</span>
+                                    <span>Voir le replay</span>
+                                </a>
+                            </div>
+                        ` : ''}
+                        ${v.smogonLink ? `
+                            <div class="replay-section">
+                                <a href="${v.smogonLink}" target="_blank" class="replay-btn smogon-btn">
+                                    <span>📚</span>
+                                    <span>Voir sur Smogon</span>
+                                </a>
+                            </div>
+                        ` : ''}
+                    </div>
+                    <div class="card-footer">
+                        <div class="victory-badge ${v.winner === 'opponent1' ? 'winner-1' : 'winner-2'}">
+                            <span class="trophy">🏆</span>
+                            <span>VICTOIRE ${v.winner === 'opponent1' ? v.opponent1.toUpperCase() : v.opponent2.toUpperCase()}</span>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Recherche et tri
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            const search = e.target.value.toLowerCase();
+            const filtered = victories.filter(v => 
+                v.opponent1.toLowerCase().includes(search) ||
+                v.opponent2.toLowerCase().includes(search) ||
+                v.opponent1Team.toLowerCase().includes(search) ||
+                v.opponent2Team.toLowerCase().includes(search)
+            );
+            renderFilteredVictories(filtered);
+        });
+
+        document.getElementById('sortSelect').addEventListener('change', (e) => {
+            const sorted = [...victories];
+            switch(e.target.value) {
+                case 'recent':
+                    sorted.sort((a, b) => b.id - a.id);
+                    break;
+                case 'oldest':
+                    sorted.sort((a, b) => a.id - b.id);
+                    break;
+                case 'name':
+                    sorted.sort((a, b) => a.opponent1.localeCompare(b.opponent1));
+                    break;
+            }
+            victories = sorted;
+            saveData();
+            renderVictories();
+        });
+
+        function renderFilteredVictories(filtered) {
+            const temp = victories;
+            victories = filtered;
+            renderVictories();
+            victories = temp;
+        }
+
+        // Initialisation
+        loadData();
+        createParticles();
+        updateStats();
+        renderVictories();
+
+        // Date par défaut
+        document.getElementById('battleDate').valueAsDate = new Date();
+    </script>
+</body>
+</html>
